@@ -6,5 +6,5 @@
 # 
 # This file is part of Synchronized-BatchNorm-PyTorch.
 
-from .batchnorm import SynchronizedBatchNorm1d
-from .replicate import DataParallelWithCallback
+from .batchnorm import SynchronizedBatchNorm1d, SynchronizedBatchNorm2d, SynchronizedBatchNorm3d
+from .replicate import DataParallelWithCallback, patch_replication_callback

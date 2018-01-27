@@ -9,15 +9,13 @@
 import queue
 import collections
 import threading
-import weakref
 
-import torch
-from torch.nn.parallel._functions import ReduceAddCoalesced, Broadcast
-
-__all__ = ['FutureResult', 'ChildRegistry', 'SyncManager']
+__all__ = ['FutureResult', 'SlavePipe', 'SyncMaster']
 
 
 class FutureResult(object):
+    """A thread-safe future implementation. Used only as one-to-one pipe."""
+
     def __init__(self):
         self._result = None
         self._lock = threading.Lock()
@@ -39,63 +37,93 @@ class FutureResult(object):
             return res
 
 
-_ManagerRegistry = collections.namedtuple('ManagerRegistry', ['result'])
-_ChildRegistryBase = collections.namedtuple('_ChildRegistryBase', ['identifier', 'queue', 'result'])
-_ChildMessage = collections.namedtuple('_ChildMessage', ['sum', 'ssum', 'sum_size', 'identifier'])
+_MasterRegistry = collections.namedtuple('MasterRegistry', ['result'])
+_SlavePipeBase = collections.namedtuple('_SlavePipeBase', ['identifier', 'queue', 'result'])
 
 
-class ChildRegistry(_ChildRegistryBase):
-    def get(self, sum_, ssum, sum_size):
-        self.queue.put(_ChildMessage(sum_, ssum, sum_size, self.identifier))
+class SlavePipe(_SlavePipeBase):
+    """Pipe for master-slave communication."""
+
+    def run_slave(self, msg):
+        self.queue.put((self.identifier, msg))
         ret = self.result.get()
         self.queue.put(True)
         return ret
 
 
-class SyncManager(object):
-    def __init__(self, batch_norm):
-        self._batch_norm = batch_norm
+class SyncMaster(object):
+    """An abstract `SyncMaster` object.
+
+    - During the replication, as the data parallel will trigger an callback of each module, all slave devices should
+    call `register(id)` and obtain an `SlavePipe` to communicate with the master.
+    - During the forward pass, master device invokes `run_master`, all messages from slave devices will be collected,
+    and passed to a registered callback.
+    - After receiving the messages, the master device should gather the information and determine to message passed
+    back to each slave devices.
+    """
+
+    def __init__(self, master_callback):
+        """
+
+        Args:
+            master_callback: a callback to be invoked after having collected messages from slave devices.
+        """
+        self._master_callback = master_callback
         self._queue = queue.Queue()
         self._registry = collections.OrderedDict()
         self._activated = False
 
-    def register(self, identifier):
+    def register_slave(self, identifier):
+        """
+        Register an slave device.
+
+        Args:
+            identifier: an identifier, usually is the device id.
+
+        Returns: a `SlavePipe` object which can be used to communicate with the master device.
+
+        """
         if self._activated:
             assert self._queue.empty(), 'Queue is not clean before next initialization.'
             self._activated = False
             self._registry.clear()
         future = FutureResult()
-        self._registry[identifier] = _ManagerRegistry(future)
-        return ChildRegistry(identifier, self._queue, future)
+        self._registry[identifier] = _MasterRegistry(future)
+        return SlavePipe(identifier, self._queue, future)
 
-    def collect(self, mine_sum, mine_ssum, mine_size):
+    def run_master(self, master_msg):
+        """
+        Main entry for the master device in each forward pass.
+        The messages were first collected from each devices (including the master device), and then
+        an callback will be invoked to compute the message to be sent back to each devices
+        (including the master device).
+
+        Args:
+            master_msg: the message that the master want to send to itself. This will be placed as the first
+            message when calling `master_callback`. For detailed usage, see `_SynchronizedBatchNorm` for an example.
+
+        Returns: the message to be sent back to the master device.
+
+        """
         self._activated = True
 
-        intermediate = [_ChildMessage(mine_sum, mine_ssum, mine_size, 0)]
-        to_reduce = [mine_sum, mine_ssum]
-        for i in range(self.nr_children):
-            intermediate.append(self._queue.get())
-            to_reduce.extend(intermediate[-1][:2])
+        intermediates = [(0, master_msg)]
+        for i in range(self.nr_slaves):
+            intermediates.append(self._queue.get())
 
-        target_gpus = [i[0].get_device() for i in intermediate]
+        results = self._master_callback(intermediates)
+        assert results[0][0] == 0, 'The first result should belongs to the master.'
 
-        sum_, ssum = ReduceAddCoalesced.apply(mine_sum.get_device(), 2, *to_reduce)
-        sum_size = sum([i.sum_size for i in intermediate])
-        mean, inv_std = self._batch_norm.compute_mean_std(sum_, ssum, sum_size)
-
-        broadcasted = Broadcast.apply(target_gpus, mean, inv_std)
-
-        for i, rec in enumerate(intermediate):
+        for i, res in results:
             if i == 0:
                 continue
-            mean, inv_std = broadcasted[i*2:i*2+2]
-            self._registry[rec.identifier].result.put((mean, inv_std))
+            self._registry[i].result.put(res)
 
-        for i in range(self.nr_children):
+        for i in range(self.nr_slaves):
             assert self._queue.get() is True
 
-        return broadcasted[0:2]
+        return results[0][1]
 
     @property
-    def nr_children(self):
+    def nr_slaves(self):
         return len(self._registry)
