@@ -64,9 +64,11 @@ class _SynchronizedBatchNorm(_BatchNorm):
         else:
             mean, inv_std = self._child_registry.get(input_sum, input_ssum, sum_size)
 
-        output = (input - _unsqueeze_ft(mean)) * _unsqueeze_ft(inv_std)
         if self.affine:
-            output = output * _unsqueeze_ft(self.weight) + _unsqueeze_ft(self.bias)
+            # MJY:: Fuse the multiplication for speed.
+            output = (input - _unsqueeze_ft(mean)) * _unsqueeze_ft(inv_std * self.weight) + _unsqueeze_ft(self.bias)
+        else:
+            output = (input - _unsqueeze_ft(mean)) * _unsqueeze_ft(inv_std)
         return output.view(input_shape)
 
     def __data_parallel_replicate__(self, ctx, current_id):
