@@ -25,7 +25,7 @@ is usually large enough to obtain good statistics). However, it will hurt the pe
 in some tasks that the batch size is usually very small (e.g., 1 per GPU).
 
 For example, the importance of synchronized batch normalization in object detection has been recently proved with a
-extensive analysis in paper [MegDet]().
+extensive analysis in paper [MegDet: A Large Mini-Batch Object Detector](https://arxiv.org/abs/1711.07240).
 
 ## Usage
 
@@ -73,14 +73,15 @@ will usually not be the issue for most of the models.
 
 #### Runtime error on backward pass.
 
-Due to a [PyTorch Bug](), using old PyTorch libraries will trigger an `RuntimeError` with messages like:
+Due to a [PyTorch Bug](https://github.com/pytorch/pytorch/issues/3883), using old PyTorch libraries will trigger an `RuntimeError` with messages like:
 
 ```
+Assertion `pos >= 0 && pos < buffer.size()` failed.
 ```
 
 This has already been solved in the newest PyTorch repo, which, unfortunately has not been pushed to the official and
  anaconda binary release. Thus, you are required to build the PyTorch package from source according to the
- instructions [here]().
+ instructions [here](https://github.com/pytorch/pytorch#from-source).
 
 #### Numeric error.
 
