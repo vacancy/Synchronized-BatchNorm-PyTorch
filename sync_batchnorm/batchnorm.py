@@ -100,7 +100,7 @@ class _SynchronizedBatchNorm(_BatchNorm):
 
         outputs = []
         for i, rec in enumerate(intermediates):
-            outputs.append((i, _MasterMessage(broadcasted[i*2:i*2+2])))
+            outputs.append((i, _MasterMessage(*broadcasted[i*2:i*2+2])))
 
         return outputs
 
