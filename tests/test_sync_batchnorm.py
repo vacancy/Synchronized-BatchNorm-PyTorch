@@ -64,9 +64,11 @@ class SyncTestCase(TorchTestCase):
     def testSyncBatchNormTrain(self):
         bn = nn.BatchNorm1d(10)
         sync_bn = SynchronizedBatchNorm1d(10)
+        bn.cuda()
+        sync_bn.cuda()
 
-        bn = DataParallelWithCallback(bn, device_ids=[-1, -1])
-        sync_bn = DataParallelWithCallback(sync_bn, device_ids=[-1, -1])
+        bn = DataParallelWithCallback(bn, device_ids=[0, 1])
+        sync_bn = DataParallelWithCallback(sync_bn, device_ids=[0, 1])
         self._checkBatchNormResult(bn, sync_bn, torch.rand(16, 10), True)
 
 

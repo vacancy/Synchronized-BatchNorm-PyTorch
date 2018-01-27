@@ -9,7 +9,9 @@
 import queue
 import collections
 import threading
+import weakref
 
+import torch
 from torch.nn.parallel._functions import ReduceAddCoalesced, Broadcast
 
 __all__ = ['FutureResult', 'ChildRegistry', 'SyncManager']
@@ -38,12 +40,13 @@ class FutureResult(object):
 
 
 _ManagerRegistry = collections.namedtuple('ManagerRegistry', ['result'])
-_ChildRegistryBase = collections.namedtuple('_ChildRegistryBase', ['queue', 'result'])
+_ChildRegistryBase = collections.namedtuple('_ChildRegistryBase', ['identifier', 'queue', 'result'])
+_ChildMessage = collections.namedtuple('_ChildMessage', ['sum', 'ssum', 'sum_size', 'identifier'])
 
 
 class ChildRegistry(_ChildRegistryBase):
-    def get(self, sum_, ssum, total_size):
-        self.queue.put((sum_, ssum, total_size))
+    def get(self, sum_, ssum, sum_size):
+        self.queue.put(_ChildMessage(sum_, ssum, sum_size, self.identifier))
         ret = self.result.get()
         self.queue.put(True)
         return ret
@@ -63,12 +66,12 @@ class SyncManager(object):
             self._registry.clear()
         future = FutureResult()
         self._registry[identifier] = _ManagerRegistry(future)
-        return ChildRegistry(self._queue, future)
+        return ChildRegistry(identifier, self._queue, future)
 
     def collect(self, mine_sum, mine_ssum, mine_size):
         self._activated = True
 
-        intermediate = [(mine_sum, mine_ssum, mine_size)]
+        intermediate = [_ChildMessage(mine_sum, mine_ssum, mine_size, 0)]
         to_reduce = [mine_sum, mine_ssum]
         for i in range(self.nr_children):
             intermediate.append(self._queue.get())
@@ -76,18 +79,22 @@ class SyncManager(object):
 
         target_gpus = [i[0].get_device() for i in intermediate]
 
-        sum_, ssum = ReduceAddCoalesced.apply(mine_sum.get_device(), 1, *to_reduce)
-        total_size = sum([i[2] for i in intermediate])
-        mean, std = self._batch_norm.compute_mean_std(sum_, ssum, total_size)
+        sum_, ssum = ReduceAddCoalesced.apply(mine_sum.get_device(), 2, *to_reduce)
+        sum_size = sum([i.sum_size for i in intermediate])
+        mean, std = self._batch_norm.compute_mean_std(sum_, ssum, sum_size)
 
         broadcasted = Broadcast.apply(target_gpus, mean, std)
 
-        for v, (mean, std) in zip(self._registry.values(), broadcasted[1:]):
-            v.result.put((mean, std))
+        for i, rec in enumerate(intermediate):
+            if i == 0:
+                continue
+            mean, std = broadcasted[i*2:i*2+2]
+            self._registry[rec.identifier].result.put((mean, std))
+
         for i in range(self.nr_children):
             assert self._queue.get() is True
 
-        return broadcasted[0]
+        return broadcasted[0:2]
 
     @property
     def nr_children(self):

@@ -17,7 +17,7 @@ class CallbackContext(object):
 
 def execute_callbacks(modules):
     master_copy = modules[0]
-    nr_modules = len(master_copy.modules())
+    nr_modules = len(list(master_copy.modules()))
     ctxs = [CallbackContext() for _ in range(nr_modules)]
     for i, module in enumerate(modules):
         for j, m in enumerate(module.modules()):
@@ -29,3 +29,5 @@ class DataParallelWithCallback(DataParallel):
     def replicate(self, module, device_ids):
         modules = super(DataParallelWithCallback, self).replicate(module, device_ids)
         execute_callbacks(modules)
+        return modules
+

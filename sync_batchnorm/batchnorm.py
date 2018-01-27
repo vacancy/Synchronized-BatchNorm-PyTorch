@@ -16,6 +16,15 @@ from .sync_manager import SyncManager
 __all__ = ['SynchronizedBatchNorm1d']
 
 
+def _sum_ft(tensor):
+    """sum over the first and last dimention"""
+    return tensor.sum(dim=0).sum(dim=-1)
+
+def _unsqueeze_ft(tensor):
+    """add new dementions at the front and the tail"""
+    return tensor.unsqueeze(0).unsqueeze(-1)
+
+
 class _SynchronizedBatchNorm(_BatchNorm):
     def __init__(self, num_features, eps=1e-5, momentum=0.1, affine=True):
         super(_SynchronizedBatchNorm, self).__init__(num_features, eps=eps, momentum=momentum, affine=affine)
@@ -45,21 +54,18 @@ class _SynchronizedBatchNorm(_BatchNorm):
                 self.training, self.momentum, self.eps)
 
         input_shape = input.size()
-        input = input.view(-1, self.num_features, -1)
-        total_size = input.size(0) * input.size(2)
-        input_sum = input.sum(dim=0).sum(dim=-1)
-        input_ssum = (input ** 2).sum(dim=0).sum(dim=-1)
+        input = input.view(input.size(0), self.num_features, -1)
+        sum_size = input.size(0) * input.size(2)
+        input_sum = _sum_ft(input)
+        input_ssum = _sum_ft(input ** 2)
         if self._parallel_id == 0:
-            mean, std = self._sync_manager.collect(input_sum, input_ssum, total_size)
+            mean, std = self._sync_manager.collect(input_sum, input_ssum, sum_size)
         else:
-            mean, std = self._child_registry.get(input_sum, input_ssum, total_size)
+            mean, std = self._child_registry.get(input_sum, input_ssum, sum_size)
 
-        mean = mean.unsqueeze(0).unsqueeze(-1)
-        std = std.unsqueeze(0).unsqueeze(-1)
-
-        output = ((input - mean) / std)
+        output = (input - _unsqueeze_ft(mean)) / _unsqueeze_ft(std)
         if self.affine:
-            output = output * self.weight.unsqueeze(0).unsqueeze(-1) + self.bias.unsqueeze(0).unsqueeze(-1)
+            output = output * _unsqueeze_ft(self.weight) + _unsqueeze_ft(self.bias)
         return output.view(input_shape)
 
     def __data_parallel_replicate__(self, ctx, current_id):
