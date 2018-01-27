@@ -81,15 +81,15 @@ class SyncManager(object):
 
         sum_, ssum = ReduceAddCoalesced.apply(mine_sum.get_device(), 2, *to_reduce)
         sum_size = sum([i.sum_size for i in intermediate])
-        mean, std = self._batch_norm.compute_mean_std(sum_, ssum, sum_size)
+        mean, inv_std = self._batch_norm.compute_mean_std(sum_, ssum, sum_size)
 
-        broadcasted = Broadcast.apply(target_gpus, mean, std)
+        broadcasted = Broadcast.apply(target_gpus, mean, inv_std)
 
         for i, rec in enumerate(intermediate):
             if i == 0:
                 continue
-            mean, std = broadcasted[i*2:i*2+2]
-            self._registry[rec.identifier].result.put((mean, std))
+            mean, inv_std = broadcasted[i*2:i*2+2]
+            self._registry[rec.identifier].result.put((mean, inv_std))
 
         for i in range(self.nr_children):
             assert self._queue.get() is True

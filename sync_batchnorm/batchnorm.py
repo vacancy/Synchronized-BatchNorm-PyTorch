@@ -46,7 +46,7 @@ class _SynchronizedBatchNorm(_BatchNorm):
         self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * mean.data
         self.running_var = (1 - self.momentum) * self.running_var + self.momentum * unbias_var.data
 
-        return mean, (bias_var + self.eps) ** -0.5
+        return mean, bias_var.clamp(self.eps) ** -0.5
 
     def forward(self, input):
         if not (self._is_parallel and self.training):

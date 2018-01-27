@@ -39,7 +39,7 @@ class NumericTestCase(TorchTestCase):
 
         a_var2 = Variable(a, requires_grad=True)
         a_mean2 = a_var2.mean(dim=0, keepdim=True)
-        a_std2 = torch.sqrt(handy_var(a_var2, unbias=False) + 1e-5)
+        a_std2 = torch.sqrt(handy_var(a_var2, unbias=False).clamp(min=1e-5))
         # a_std2 = torch.sqrt(a_var2.var(dim=0, keepdim=True, unbiased=False) + 1e-5)
         b_var2 = (a_var2 - a_mean2) / a_std2
         loss2 = b_var2.sum()
