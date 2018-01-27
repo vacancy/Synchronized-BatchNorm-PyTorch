@@ -15,6 +15,10 @@ samples distributed on multiple devices.
 Note that, for one-GPU or CPU-only case, this module behaves exactly same
 as the built-in PyTorch implementation.
 
+This module is currently only a prototype version for research usages. As mentioned below,
+it has its limitations and may even suffer from some design problems. If you have any
+questions or suggestions, please feel free to [open an issue](issues) or submit a [pull request](pulls).
+
 ## Why Synchronized BatchNorm?
 
 Although the typical implementation of BatchNorm working on multiple devices (GPUs)
@@ -88,3 +92,9 @@ This has already been solved in the newest PyTorch repo, which, unfortunately ha
 Because this library does not fuse the normalization and statistics operations in C++ (nor CUDA), it is less
 numerically stable compared to the original PyTorch implementation. Detailed analysis can be found in
 `tests/test_sync_batchnorm.py`.
+
+## Authors:
+
+Copyright (c) 2018- [Jiayuan Mao](https://github.com/vacancy).
+
+
