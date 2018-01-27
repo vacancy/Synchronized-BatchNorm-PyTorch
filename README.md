@@ -17,7 +17,9 @@ as the built-in PyTorch implementation.
 
 This module is currently only a prototype version for research usages. As mentioned below,
 it has its limitations and may even suffer from some design problems. If you have any
-questions or suggestions, please feel free to [open an issue](issues) or submit a [pull request](pulls).
+questions or suggestions, please feel free to
+[open an issue](https://github.com/vacancy/Synchronized-BatchNorm-PyTorch/issues) or 
+[submit a pull request](https://github.com/vacancy/Synchronized-BatchNorm-PyTorch/issues).
 
 ## Why Synchronized BatchNorm?
 
