@@ -68,8 +68,8 @@ at the code with detailed comments. Here we only emphasize some highlights of th
 - It is completely compatible with PyTorch's implementation. Specifically, it uses unbiased variance to update the
 moving average, and use `sqrt(max(var, eps))` instead of `sqrt(var + eps)`.
 - The implementation requires that each module on different devices should invoke the `batchnorm` for exactly SAME
-amount of times in each forward pass. For example, you can not only call `batchnorm` on GPU0 but not on GPU1. The #i
-(i = 1, 2, 3, ...) calls of the `batchnorm` on each device will be viewed as a whole and the statistics will reduced.
+amount of times in each forward pass. For example, you can not only call `batchnorm` on GPU0 but not on GPU1. The `#i
+(i = 1, 2, 3, ...)` calls of the `batchnorm` on each device will be viewed as a whole and the statistics will reduced.
 This is tricky but is a good way to handle PyTorch's dynamic computation graph. Although sounds complicated, this
 will usually not be the issue for most of the models.
 
@@ -95,6 +95,6 @@ numerically stable compared to the original PyTorch implementation. Detailed ana
 
 ## Authors:
 
-Copyright (c) 2018- [Jiayuan Mao](https://github.com/vacancy).
+Copyright (c) 2018-, [Jiayuan Mao](https://github.com/vacancy).
 
 
