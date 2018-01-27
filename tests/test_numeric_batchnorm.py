@@ -40,14 +40,16 @@ class NumericTestCase(TorchTestCase):
         a_var2 = Variable(a, requires_grad=True)
         a_mean2 = a_var2.mean(dim=0, keepdim=True)
         a_std2 = torch.sqrt(handy_var(a_var2, unbias=False) + 1e-5)
+        # a_std2 = torch.sqrt(a_var2.var(dim=0, keepdim=True, unbiased=False) + 1e-5)
         b_var2 = (a_var2 - a_mean2) / a_std2
         loss2 = b_var2.sum()
         loss2.backward()
 
         self.assertTensorClose(bn.running_mean, a.mean(dim=0))
         self.assertTensorClose(bn.running_var, handy_var(a))
-        self.assertTensorClose(b_var1.data, b_var2.data)
         self.assertTensorClose(a_var1.data, a_var2.data)
+        self.assertTensorClose(b_var1.data, b_var2.data)
+        self.assertTensorClose(a_var1.grad, a_var2.grad)
 
 
 if __name__ == '__main__':

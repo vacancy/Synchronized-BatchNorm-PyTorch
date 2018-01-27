@@ -16,6 +16,17 @@ from sync_batchnorm import SynchronizedBatchNorm1d, DataParallelWithCallback
 from sync_batchnorm.unittest import TorchTestCase
 
 
+def handy_var(a, unbias=True):
+    n = a.size(0)
+    asum = a.sum(dim=0)
+    as_sum = (a ** 2).sum(dim=0)  # a square sum
+    sumvar = as_sum - asum * asum / n
+    if unbias:
+        return sumvar / (n - 1)
+    else:
+        return sumvar / n
+
+
 def _find_bn(module):
     for m in module.modules():
         if isinstance(m, (nn.BatchNorm1d, SynchronizedBatchNorm1d)):
@@ -30,9 +41,12 @@ class SyncTestCase(TorchTestCase):
             bn2.weight.data.copy_(bn1.weight.data)
             bn2.bias.data.copy_(bn1.bias.data)
 
-    def _checkBatchNormResult(self, bn1, bn2, input, is_train):
+    def _checkBatchNormResult(self, bn1, bn2, input, is_train, cuda=False):
         bn1.train(mode=is_train)
         bn2.train(mode=is_train)
+
+        if cuda:
+            input = input.cuda()
 
         self._syncParameters(_find_bn(bn1), _find_bn(bn2))
 
@@ -61,15 +75,15 @@ class SyncTestCase(TorchTestCase):
 
         self._checkBatchNormResult(bn, sync_bn, torch.rand(16, 10), False)
 
-    def testSyncBatchNormTrain(self):
-        bn = nn.BatchNorm1d(10)
-        sync_bn = SynchronizedBatchNorm1d(10)
+    def testSyncBatchNormSyncTrain(self):
+        bn = nn.BatchNorm1d(10, eps=1e-5, affine=False)
+        sync_bn = SynchronizedBatchNorm1d(10, eps=1e-5, affine=False)
+        sync_bn = DataParallelWithCallback(sync_bn, device_ids=[0, 1])
+
         bn.cuda()
         sync_bn.cuda()
 
-        bn = DataParallelWithCallback(bn, device_ids=[0, 1])
-        sync_bn = DataParallelWithCallback(sync_bn, device_ids=[0, 1])
-        self._checkBatchNormResult(bn, sync_bn, torch.rand(16, 10), True)
+        self._checkBatchNormResult(bn, sync_bn, torch.rand(16, 10), True, cuda=True)
 
 
 if __name__ == '__main__':

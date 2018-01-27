@@ -20,6 +20,7 @@ def _sum_ft(tensor):
     """sum over the first and last dimention"""
     return tensor.sum(dim=0).sum(dim=-1)
 
+
 def _unsqueeze_ft(tensor):
     """add new dementions at the front and the tail"""
     return tensor.unsqueeze(0).unsqueeze(-1)
@@ -38,14 +39,14 @@ class _SynchronizedBatchNorm(_BatchNorm):
     def compute_mean_std(self, sum_, ssum, size):
         assert size > 1
         mean = sum_ / size
-        sumvar = ssum - sum_ * mean
+        sumvar = ssum - sum_ * mean 
         unbias_var = sumvar / (size - 1)
         bias_var = sumvar / size
 
         self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * mean.data
         self.running_var = (1 - self.momentum) * self.running_var + self.momentum * unbias_var.data
 
-        return mean, torch.sqrt(bias_var + self.eps)
+        return mean, (bias_var + self.eps) ** -0.5
 
     def forward(self, input):
         if not (self._is_parallel and self.training):
@@ -59,11 +60,11 @@ class _SynchronizedBatchNorm(_BatchNorm):
         input_sum = _sum_ft(input)
         input_ssum = _sum_ft(input ** 2)
         if self._parallel_id == 0:
-            mean, std = self._sync_manager.collect(input_sum, input_ssum, sum_size)
+            mean, inv_std = self._sync_manager.collect(input_sum, input_ssum, sum_size)
         else:
-            mean, std = self._child_registry.get(input_sum, input_ssum, sum_size)
+            mean, inv_std = self._child_registry.get(input_sum, input_ssum, sum_size)
 
-        output = (input - _unsqueeze_ft(mean)) / _unsqueeze_ft(std)
+        output = (input - _unsqueeze_ft(mean)) * _unsqueeze_ft(inv_std)
         if self.affine:
             output = output * _unsqueeze_ft(self.weight) + _unsqueeze_ft(self.bias)
         return output.view(input_shape)

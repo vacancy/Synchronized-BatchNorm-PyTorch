@@ -15,7 +15,7 @@ from torch.autograd import Variable
 def as_numpy(v):
     if isinstance(v, Variable):
         v = v.data
-    return v.numpy()
+    return v.cpu().numpy()
 
 
 class TorchTestCase(unittest.TestCase):
