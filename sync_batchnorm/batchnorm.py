@@ -5,6 +5,8 @@
 # Date   : 27/01/2018
 # 
 # This file is part of Synchronized-BatchNorm-PyTorch.
+# https://github.com/vacancy/Synchronized-BatchNorm-PyTorch
+# Distributed under MIT License.
 
 import collections
 
@@ -14,7 +16,7 @@ import torch.nn.functional as F
 from torch.nn.modules.batchnorm import _BatchNorm
 from torch.nn.parallel._functions import ReduceAddCoalesced, Broadcast
 
-from .sync_manager import SyncMaster
+from .comm import SyncMaster
 
 __all__ = ['SynchronizedBatchNorm1d', 'SynchronizedBatchNorm2d', 'SynchronizedBatchNorm3d']
 
@@ -81,9 +83,9 @@ class _SynchronizedBatchNorm(_BatchNorm):
 
         # parallel_id == 0 means master device.
         if self._parallel_id == 0:
-            ctx.sync_manager = self._sync_master
+            ctx.sync_master = self._sync_master
         else:
-            self._slave_pipe = ctx.sync_manager.register_slave(copy_id)
+            self._slave_pipe = ctx.sync_master.register_slave(copy_id)
 
     def _data_parallel_master(self, intermediates):
         """Reduce the sum and square-sum, compute the statistics, and broadcast it."""
@@ -130,13 +132,13 @@ class SynchronizedBatchNorm1d(_SynchronizedBatchNorm):
     This module differs from the built-in PyTorch BatchNorm1d as the mean and
     standard-deviation are reduced across all devices during training.
 
-    For example, when one use `nn.DataParallel` to wrap the network during
+    For example, when one uses `nn.DataParallel` to wrap the network during
     training, PyTorch's implementation normalize the tensor on each device using
     the statistics only on that device, which accelerated the computation and
-    is also easy to implement, but might be inaccurate. However, in this
-    synchronized version, the statistics will be computed over all training
-    samples distributed on multiple devices.
-
+    is also easy to implement, but the statistics might be inaccurate.
+    Instead, in this synchronized version, the statistics will be computed
+    over all training samples distributed on multiple devices.
+    
     Note that, for one-GPU or CPU-only case, this module behaves exactly same
     as the built-in PyTorch implementation.
 
@@ -193,13 +195,13 @@ class SynchronizedBatchNorm2d(_SynchronizedBatchNorm):
     This module differs from the built-in PyTorch BatchNorm2d as the mean and
     standard-deviation are reduced across all devices during training.
 
-    For example, when one use `nn.DataParallel` to wrap the network during
+    For example, when one uses `nn.DataParallel` to wrap the network during
     training, PyTorch's implementation normalize the tensor on each device using
     the statistics only on that device, which accelerated the computation and
-    is also easy to implement, but might be inaccurate. However, in this
-    synchronized version, the statistics will be computed over all training
-    samples distributed on multiple devices.
-
+    is also easy to implement, but the statistics might be inaccurate.
+    Instead, in this synchronized version, the statistics will be computed
+    over all training samples distributed on multiple devices.
+    
     Note that, for one-GPU or CPU-only case, this module behaves exactly same
     as the built-in PyTorch implementation.
 
@@ -256,13 +258,13 @@ class SynchronizedBatchNorm3d(_SynchronizedBatchNorm):
     This module differs from the built-in PyTorch BatchNorm3d as the mean and
     standard-deviation are reduced across all devices during training.
 
-    For example, when one use `nn.DataParallel` to wrap the network during
+    For example, when one uses `nn.DataParallel` to wrap the network during
     training, PyTorch's implementation normalize the tensor on each device using
     the statistics only on that device, which accelerated the computation and
-    is also easy to implement, but might be inaccurate. However, in this
-    synchronized version, the statistics will be computed over all training
-    samples distributed on multiple devices.
-
+    is also easy to implement, but the statistics might be inaccurate.
+    Instead, in this synchronized version, the statistics will be computed
+    over all training samples distributed on multiple devices.
+    
     Note that, for one-GPU or CPU-only case, this module behaves exactly same
     as the built-in PyTorch implementation.
 
