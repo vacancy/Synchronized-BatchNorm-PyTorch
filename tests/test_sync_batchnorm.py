@@ -42,6 +42,7 @@ class SyncTestCase(TorchTestCase):
             bn2.bias.data.copy_(bn1.bias.data)
 
     def _checkBatchNormResult(self, bn1, bn2, input, is_train, cuda=False):
+        """Check the forward and backward for the customized batch normalization."""
         bn1.train(mode=is_train)
         bn2.train(mode=is_train)
 
@@ -104,7 +105,6 @@ class SyncTestCase(TorchTestCase):
         sync_bn.cuda()
 
         self._checkBatchNormResult(bn, sync_bn, torch.rand(16, 10, 16, 16), True, cuda=True)
-
 
 
 if __name__ == '__main__':
