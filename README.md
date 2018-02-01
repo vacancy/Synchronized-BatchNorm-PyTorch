@@ -96,5 +96,9 @@ numerically stable compared to the original PyTorch implementation. Detailed ana
 
 ## Authors and License:
 
-Copyright (c) 2018-, [Jiayuan Mao](https://github.com/vacancy).
-Distributed under MIT License (See LICENSE)
+Copyright (c) 2018-, [Jiayuan Mao](https://vccy.xyz).
+
+**Contributors**: [Tete Xiao](https://tetexiao.com).
+
+Distributed under **MIT License** (See LICENSE)
+
