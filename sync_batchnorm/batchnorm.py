@@ -90,11 +90,15 @@ class _SynchronizedBatchNorm(_BatchNorm):
     def _data_parallel_master(self, intermediates):
         """Reduce the sum and square-sum, compute the statistics, and broadcast it."""
 
+        # Always using same "device order" makes the ReduceAdd operation faster.
+        # Thanks to:: Tete Xiao (http://tetexiao.com/)
+        intermediates = sorted(intermediates, key=lambda i: i[1].sum.get_device())
+
         to_reduce = [i[1][:2] for i in intermediates]
         to_reduce = [j for i in to_reduce for j in i]  # flatten
         target_gpus = [i[1].sum.get_device() for i in intermediates]
-        sum_size = sum([i[1].sum_size for i in intermediates])
 
+        sum_size = sum([i[1].sum_size for i in intermediates])
         sum_, ssum = ReduceAddCoalesced.apply(target_gpus[0], 2, *to_reduce)
         mean, inv_std = self._compute_mean_std(sum_, ssum, sum_size)
 
