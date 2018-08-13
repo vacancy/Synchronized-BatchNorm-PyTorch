@@ -29,7 +29,7 @@ def handy_var(a, unbias=True):
 class NumericTestCase(TorchTestCase):
     def testNumericBatchNorm(self):
         a = torch.rand(16, 10)
-        bn = nn.BatchNorm2d(10, momentum=1, eps=1e-5, affine=False)
+        bn = nn.BatchNorm1d(10, momentum=1, eps=1e-5, affine=False)
         bn.train()
 
         a_var1 = Variable(a, requires_grad=True)
