@@ -75,6 +75,12 @@ class SyncMaster(object):
         self._registry = collections.OrderedDict()
         self._activated = False
 
+    def __getstate__(self):
+        return {'master_callback': self._master_callback}
+
+    def __setstate__(self, state):
+        self.__init__(state['master_callback'])
+
     def register_slave(self, identifier):
         """
         Register an slave device.
