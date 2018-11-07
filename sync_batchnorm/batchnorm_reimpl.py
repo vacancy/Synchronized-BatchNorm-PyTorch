@@ -70,5 +70,5 @@ class BatchNorm2dReimpl(nn.Module):
                 (input_ - mean.unsqueeze(1)) * inv_std.unsqueeze(1) *
                 self.weight.unsqueeze(1) + self.bias.unsqueeze(1))
 
-        return output.permute(1, 0).contiguous().view(batchsize, channels, height, width)
+        return output.view(channels, batchsize, height, width).permute(1, 0, 2, 3).contiguous()
 
