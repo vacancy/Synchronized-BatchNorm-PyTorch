@@ -53,6 +53,8 @@ class NumericTestCasev2(TorchTestCase):
         self.assertTensorClose(input1.grad, input2.grad)
         self.assertTensorClose(batchnorm1.weight.grad, batchnorm2.weight.grad)
         self.assertTensorClose(batchnorm1.bias.grad, batchnorm2.bias.grad)
+        self.assertTensorClose(batchnorm1.running_mean, batchnorm2.running_mean)
+        self.assertTensorClose(batchnorm2.running_mean, batchnorm2.running_mean)
 
 
 if __name__ == '__main__':
