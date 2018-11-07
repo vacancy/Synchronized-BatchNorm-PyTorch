@@ -13,7 +13,7 @@ import torch
 
 
 class TorchTestCase(unittest.TestCase):
-    def assertTensorClose(self, x, y, atol=1e-3, rtol=1e-3):
+    def assertTensorClose(self, x, y):
         adiff = float((x - y).abs().max())
         if (y == 0).all():
             rdiff = 'NaN'
@@ -25,5 +25,5 @@ class TorchTestCase(unittest.TestCase):
             'adiff={}\n'
             'rdiff={}\n'
         ).format(adiff, rdiff)
-        self.assertTrue(torch.allclose(x, y, atol=atol, rtol=rtol), message)
+        self.assertTrue(torch.allclose(x, y), message)
 
