@@ -17,8 +17,10 @@ from torch.nn.modules.batchnorm import _BatchNorm
 from torch.nn.parallel._functions import ReduceAddCoalesced, Broadcast
 
 from .comm import SyncMaster
+from .replicate import DataParallelWithCallback
 
-__all__ = ['SynchronizedBatchNorm1d', 'SynchronizedBatchNorm2d', 'SynchronizedBatchNorm3d']
+__all__ = ['SynchronizedBatchNorm1d', 'SynchronizedBatchNorm2d',
+           'SynchronizedBatchNorm3d', 'convert_model']
 
 
 def _sum_ft(tensor):
@@ -313,3 +315,41 @@ class SynchronizedBatchNorm3d(_SynchronizedBatchNorm):
             raise ValueError('expected 5D input (got {}D input)'
                              .format(input.dim()))
         super(SynchronizedBatchNorm3d, self)._check_input_dim(input)
+
+        
+def convert_model(module):
+    if isinstance(module, torch.nn.DataParallel):
+        mod = module.module
+        mod = convert_model(mod)
+        mod = DataParallelWithCallback(mod)
+        return mod
+    
+    mod = module
+    if isinstance(module, torch.nn.modules.batchnorm.BatchNorm1d):
+        mod = SynchronizedBatchNorm1d(module.num_features, module.eps, module.momentum, module.affine)
+        mod.running_mean = module.running_mean
+        mod.running_var = module.running_var
+        if module.affine:
+            mod.weight.data = module.weight.data.clone().detach()
+            mod.bias.data = module.bias.data.clone().detach()
+    
+    if isinstance(module, torch.nn.modules.batchnorm.BatchNorm2d):
+        mod = SynchronizedBatchNorm2d(module.num_features, module.eps, module.momentum, module.affine)
+        mod.running_mean = module.running_mean
+        mod.running_var = module.running_var
+        if module.affine:
+            mod.weight.data = module.weight.data.clone().detach()
+            mod.bias.data = module.bias.data.clone().detach()
+            
+    if isinstance(module, torch.nn.modules.batchnorm.BatchNorm3d):
+        mod = SynchronizedBatchNorm3d(module.num_features, module.eps, module.momentum, module.affine)
+        mod.running_mean = module.running_mean
+        mod.running_var = module.running_var
+        if module.affine:
+            mod.weight.data = module.weight.data.clone().detach()
+            mod.bias.data = module.bias.data.clone().detach()
+            
+    for name, child in module.named_children():
+        mod.add_module(name, convert_model(child))
+    del module
+    return mod
