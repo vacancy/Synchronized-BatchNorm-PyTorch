@@ -318,6 +318,22 @@ class SynchronizedBatchNorm3d(_SynchronizedBatchNorm):
 
         
 def convert_model(module):
+    """Traverse the input module and its child recursively
+       and replace all instance of torch.nn.modules.batchnorm.BatchNorm*N*d
+       to SynchronizedBatchNorm*N*d 
+        
+    Args:
+        module: the input module needs to be convert to SyncBN model
+        
+    Examples:
+        >>> import torch.nn as nn
+        >>> import torchvision
+        >>> # m is a standard pytorch model
+        >>> m = torchvision.models.resnet18(True)
+        >>> m = nn.DataParallel(m)
+        >>> # after convert, m is using SyncBN
+        >>> m = convert_model(m)
+    """
     if isinstance(module, torch.nn.DataParallel):
         mod = module.module
         mod = convert_model(mod)
@@ -325,31 +341,21 @@ def convert_model(module):
         return mod
     
     mod = module
-    if isinstance(module, torch.nn.modules.batchnorm.BatchNorm1d):
-        mod = SynchronizedBatchNorm1d(module.num_features, module.eps, module.momentum, module.affine)
-        mod.running_mean = module.running_mean
-        mod.running_var = module.running_var
-        if module.affine:
-            mod.weight.data = module.weight.data.clone().detach()
-            mod.bias.data = module.bias.data.clone().detach()
-    
-    if isinstance(module, torch.nn.modules.batchnorm.BatchNorm2d):
-        mod = SynchronizedBatchNorm2d(module.num_features, module.eps, module.momentum, module.affine)
-        mod.running_mean = module.running_mean
-        mod.running_var = module.running_var
-        if module.affine:
-            mod.weight.data = module.weight.data.clone().detach()
-            mod.bias.data = module.bias.data.clone().detach()
-            
-    if isinstance(module, torch.nn.modules.batchnorm.BatchNorm3d):
-        mod = SynchronizedBatchNorm3d(module.num_features, module.eps, module.momentum, module.affine)
-        mod.running_mean = module.running_mean
-        mod.running_var = module.running_var
-        if module.affine:
-            mod.weight.data = module.weight.data.clone().detach()
-            mod.bias.data = module.bias.data.clone().detach()
+    for pth_module, sync_module in zip([torch.nn.modules.batchnorm.BatchNorm1d,
+                                        torch.nn.modules.batchnorm.BatchNorm2d,
+                                        torch.nn.modules.batchnorm.BatchNorm3d],
+                                       [SynchronizedBatchNorm1d,
+                                        SynchronizedBatchNorm2d,
+                                        SynchronizedBatchNorm3d]):
+        if isinstance(module, pth_module):
+            mod = sync_module(module.num_features, module.eps, module.momentum, module.affine)
+            mod.running_mean = module.running_mean
+            mod.running_var = module.running_var
+            if module.affine:
+                mod.weight.data = module.weight.data.clone().detach()
+                mod.bias.data = module.bias.data.clone().detach()
             
     for name, child in module.named_children():
         mod.add_module(name, convert_model(child))
-    del module
+    
     return mod
