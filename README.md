@@ -108,7 +108,7 @@ numerically stable compared to the original PyTorch implementation. Detailed ana
 
 Copyright (c) 2018-, [Jiayuan Mao](https://vccy.xyz).
 
-**Contributors**: [Tete Xiao](https://tetexiao.com).
+**Contributors**: [Tete Xiao](https://tetexiao.com), [DTennant](https://github.com/DTennant).
 
 Distributed under **MIT License** (See LICENSE)
 
