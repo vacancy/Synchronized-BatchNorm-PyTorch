@@ -61,10 +61,13 @@ patch_replication_callback(sync_bn)  # monkey-patching
 You can use `convert_model` to convert your model to use Synchronized BatchNorm easily.
 
 ```python
+import torch.nn as nn
 from torchvision import models
 from sync_batchnorm import convert_model
-
-m = models.resnet18(pretrained=True)
+# m is a standard pytorch model
+m = models.resnet18(True)
+m = nn.DataParallel(m)
+# after convert, m is using SyncBN
 m = convert_model(m)
 ```
 
