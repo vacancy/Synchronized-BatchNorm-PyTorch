@@ -370,7 +370,7 @@ def convert_model(module):
     if isinstance(module, torch.nn.DataParallel):
         mod = module.module
         mod = convert_model(mod)
-        mod = DataParallelWithCallback(mod)
+        mod = DataParallelWithCallback(mod, device_ids=module.device_ids)
         return mod
 
     mod = module
