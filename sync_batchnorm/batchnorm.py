@@ -55,6 +55,10 @@ class _SynchronizedBatchNorm(_BatchNorm):
         super(_SynchronizedBatchNorm, self).__init__(num_features, eps=eps, momentum=momentum, affine=affine,
                                                      track_running_stats=track_running_stats)
 
+        if not self.track_running_stats:
+            import warnings
+            warnings.warn('track_running_stats=False is not supported by the SynchronizedBatchNorm.')
+
         self._sync_master = SyncMaster(self._data_parallel_master)
 
         self._is_parallel = False
