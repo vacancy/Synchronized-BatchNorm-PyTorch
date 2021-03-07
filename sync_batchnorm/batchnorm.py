@@ -29,9 +29,19 @@ except ImportError:
     from .replicate import DataParallelWithCallback
 
 __all__ = [
+    'set_sbn_eps_mode',
     'SynchronizedBatchNorm1d', 'SynchronizedBatchNorm2d', 'SynchronizedBatchNorm3d',
     'patch_sync_batchnorm', 'convert_model'
 ]
+
+
+SBN_EPS_MODE = 'clamp'
+
+
+def set_sbn_eps_mode(mode):
+    global SBN_EPS_MODE
+    assert mode in ('clamp', 'plus')
+    SBN_EPS_MODE = mode
 
 
 def _sum_ft(tensor):
@@ -74,6 +84,7 @@ class _SynchronizedBatchNorm(_BatchNorm):
 
         # Resize the input to (B, C, -1).
         input_shape = input.size()
+        assert input.size(1) == self.num_features, 'Channel size mismatch: got {}, expect {}.'.format(input.size(1), self.num_features)
         input = input.view(input.size(0), self.num_features, -1)
 
         # Compute the sum and square-sum.
@@ -147,7 +158,12 @@ class _SynchronizedBatchNorm(_BatchNorm):
             self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * mean.data
             self.running_var = (1 - self.momentum) * self.running_var + self.momentum * unbias_var.data
 
-        return mean, bias_var.clamp(self.eps) ** -0.5
+        if SBN_EPS_MODE == 'clamp':
+            return mean, bias_var.clamp(self.eps) ** -0.5
+        elif SBN_EPS_MODE == 'plus':
+            return mean, (bias_var + self.eps) ** -0.5
+        else:
+            raise ValueError('Unknown EPS mode: {}.'.format(SBN_EPS_MODE))
 
 
 class SynchronizedBatchNorm1d(_SynchronizedBatchNorm):

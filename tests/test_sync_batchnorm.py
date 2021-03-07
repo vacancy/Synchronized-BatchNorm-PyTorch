@@ -3,7 +3,7 @@
 # Author : Jiayuan Mao
 # Email  : maojiayuan@gmail.com
 # Date   : 27/01/2018
-# 
+#
 # This file is part of Synchronized-BatchNorm-PyTorch.
 
 import unittest
@@ -12,8 +12,11 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
+from sync_batchnorm import set_sbn_eps_mode
 from sync_batchnorm import SynchronizedBatchNorm1d, SynchronizedBatchNorm2d, DataParallelWithCallback
 from sync_batchnorm.unittest import TorchTestCase
+
+set_sbn_eps_mode('plus')
 
 
 def handy_var(a, unbias=True):
