@@ -1,5 +1,7 @@
 # Synchronized-BatchNorm-PyTorch
 
+**IMPORTANT: Please read the "Implementation details and highlights" section before use.**
+
 Synchronized Batch Normalization implementation in PyTorch.
 
 This module differs from the built-in PyTorch BatchNorm as the mean and
@@ -80,8 +82,7 @@ at the code with detailed comments. Here we only emphasize some highlights of th
 
 - This implementation is in pure-python. No C++ extra extension libs.
 - Easy to use as demonstrated above.
-- It is completely compatible with PyTorch's implementation. Specifically, it uses unbiased variance to update the
-moving average, and use `sqrt(max(var, eps))` instead of `sqrt(var + eps)`.
+- It uses unbiased variance to update the moving average, and use `sqrt(max(var, eps))` instead of `sqrt(var + eps)`.
 - The implementation requires that each module on different devices should invoke the `batchnorm` for exactly SAME
 amount of times in each forward pass. For example, you can not only call `batchnorm` on GPU0 but not on GPU1. The `#i
 (i = 1, 2, 3, ...)` calls of the `batchnorm` on each device will be viewed as a whole and the statistics will be reduced.
